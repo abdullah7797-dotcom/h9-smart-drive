@@ -1,2 +1,23 @@
-# h9-smart-drive
-H9 Smart Drive beta APK for Haval H9 Android screens
+# H9 Smart Drive
+
+تطبيق تجريبي لشاشات هافال H9 العاملة بنظام Android، بواجهة مستوحاة من تصميم الشاشة الأصلية.
+
+## التنزيل عبر Downloader
+
+استخدم رابط APK المباشر التالي:
+
+https://github.com/abdullah7797-dotcom/h9-smart-drive/releases/download/v1.2.0-beta.1/H9-Smart-Drive.apk
+
+## المزايا
+
+- عرض التاريخ الميلادي والهجري فوق السرعة الحالية.
+- اختيار خلفية مخصصة من الإعدادات.
+- تصميم متوافق بصريًا مع شاشة H9.
+
+## تنبيه
+
+الإصدار الحالي Beta وموقّع بمفتاح تطوير للاختبار. افحص توافق الشاشة قبل الاعتماد عليه أثناء القيادة.
+
+SHA-256:
+
+`2400778908a3b43e7a3f41417c41c6ec465e6d9d1577ba236de3cd0a1ab81281`
