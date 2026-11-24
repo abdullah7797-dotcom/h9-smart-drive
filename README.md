@@ -8,7 +8,7 @@ https://github.com/abdullah7797-dotcom/h9-smart-drive/releases/download/v1.3.0-b
 
 SHA-256:
 
-`43f28b47c45510a74d67c1c510caa074e0f42a664a564920624350ec1a65b7d8`
+`d012dbaf338f4caf753c650b94b7e4a60f6a742aee557db2b6133077949840f5`
 
 نسخة MVP أصلية لتطبيق شاشة Haval H9، مكتوبة بـKotlin وJetpack Compose، وتعمل من Android 9 (API 28) فما فوق. المشروع مصمم للعمل دون Root أو تعديل Firmware، ويفصل البيانات التجريبية بوضوح عن البيانات الحقيقية.
 
