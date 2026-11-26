@@ -4,11 +4,11 @@
 
 استخدم رابط APK المباشر التالي داخل تطبيق Downloader:
 
-https://github.com/abdullah7797-dotcom/h9-smart-drive/releases/download/v1.3.0-beta.1/H9-Smart-Drive.apk
+https://github.com/abdullah7797-dotcom/h9-smart-drive/releases/download/v1.3.0-beta.2/H9-Smart-Drive.apk
 
 SHA-256:
 
-`d012dbaf338f4caf753c650b94b7e4a60f6a742aee557db2b6133077949840f5`
+`1d3d814c33caaca5f393f1453b50dcbbc2eddda6e589f1da7941cede34ea2579`
 
 نسخة MVP أصلية لتطبيق شاشة Haval H9، مكتوبة بـKotlin وJetpack Compose، وتعمل من Android 9 (API 28) فما فوق. المشروع مصمم للعمل دون Root أو تعديل Firmware، ويفصل البيانات التجريبية بوضوح عن البيانات الحقيقية.
 
@@ -35,8 +35,8 @@ SHA-256:
 المتطلبات:
 
 - JDK 17.
-- Android SDK Platform 35.
-- Android SDK Build Tools 34 أو أحدث.
+- Android SDK Platform 36.
+- Android SDK Build Tools 36 أو أحدث.
 
 ```bash
 ./gradlew assembleDebug

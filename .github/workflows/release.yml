@@ -43,7 +43,7 @@ jobs:
       - name: Install Android SDK packages
         run: |
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Build, test, and lint
         run: |
@@ -57,9 +57,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create v1.3.0-beta.1 H9-Smart-Drive.apk \
+          gh release create v1.3.0-beta.2 H9-Smart-Drive.apk \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
-            --title "H9 Smart Drive v1.3.0 Beta 1" \
-            --notes-file .github/release-notes-v1.3.0-beta.1.md \
+            --title "H9 Smart Drive v1.3.0 Beta 2" \
+            --notes-file .github/release-notes-v1.3.0-beta.2.md \
             --prerelease

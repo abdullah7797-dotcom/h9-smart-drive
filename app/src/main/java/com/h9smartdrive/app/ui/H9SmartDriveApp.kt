@@ -135,7 +135,7 @@ private enum class Screen(val ar: String, val en: String, val icon: ImageVector)
 }
 
 @Composable
-fun H9SmartDriveApp(viewModel: H9ViewModel) {
+fun LegacyH9SmartDriveApp(viewModel: H9ViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val arabic = state.settings.language == "ar"
     var screen by remember { mutableStateOf(Screen.HOME) }

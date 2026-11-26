@@ -7,14 +7,15 @@ plugins {
 
 android {
     namespace = "com.h9smartdrive.app"
-    compileSdk = 35
+    compileSdk = 36
+    buildToolsVersion = "36.0.0"
 
     defaultConfig {
         applicationId = "com.h9smartdrive.app"
         minSdk = 28
         targetSdk = 35
-        versionCode = 13_001
-        versionName = "1.3.0-beta.1"
+        versionCode = 13_002
+        versionName = "1.3.0-beta.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
