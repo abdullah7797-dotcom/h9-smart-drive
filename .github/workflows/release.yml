@@ -57,9 +57,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create v1.3.0-beta.2 H9-Smart-Drive.apk \
+          gh release create v1.3.0-beta.3 H9-Smart-Drive.apk \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
-            --title "H9 Smart Drive v1.3.0 Beta 2" \
-            --notes-file .github/release-notes-v1.3.0-beta.2.md \
+            --title "H9 Smart Drive v1.3.0 Beta 3" \
+            --notes-file .github/release-notes-v1.3.0-beta.3.md \
             --prerelease

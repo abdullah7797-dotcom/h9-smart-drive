@@ -1,11 +1,15 @@
 package com.h9smartdrive.app.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -31,6 +35,7 @@ import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.Flag
@@ -46,6 +51,7 @@ import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material.icons.rounded.Sensors
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material.icons.rounded.TireRepair
@@ -287,7 +293,7 @@ private fun CarHeader(screen: CarScreen, vehicle: VehicleSnapshot, arabic: Boole
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             HeaderChip(Icons.Rounded.Cloud, temperature(vehicle, arabic))
-            HeaderChip(Icons.Rounded.Wifi, if (vehicle.demoMode) if (arabic) "تجريبي" else "Demo" else if (arabic) "متصل" else "Connected")
+            HeaderChip(Icons.Rounded.Wifi, connectionLabel(vehicle, arabic))
             Surface(
                 modifier = Modifier.size(52.dp),
                 shape = RoundedCornerShape(18.dp),
@@ -596,35 +602,177 @@ private fun AppPane(icon: ImageVector, title: String, modifier: Modifier, onClic
 
 @Composable
 private fun SettingsLandscape(state: H9UiState, arabic: Boolean, viewModel: H9ViewModel) {
-    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        InfoPane(Modifier.weight(1f), if (arabic) "المظهر واللغة" else "Appearance & language") {
-            ToggleSetting(Icons.Rounded.Settings, if (arabic) "الوضع الليلي" else "Dark mode", if (arabic) "ألوان أقل سطوعًا" else "Lower-glare palette", state.settings.darkMode, viewModel::setDarkMode)
-            ToggleSetting(Icons.Rounded.Language, if (arabic) "اللغة العربية" else "Arabic language", if (arabic) "اتجاه واجهة RTL" else "RTL interface", arabic) { viewModel.setLanguage(if (it) "ar" else "en") }
-        }
-        InfoPane(Modifier.weight(1f), if (arabic) "مصادر البيانات" else "Data sources") {
-            ToggleSetting(Icons.Rounded.Sensors, if (arabic) "الوضع التجريبي" else "Demo mode", if (arabic) "بيانات محاكاة واضحة" else "Clearly marked simulated data", state.settings.demoMode, viewModel::setDemoMode)
-            DataSource.entries.filter { it != DataSource.UNAVAILABLE }.take(4).forEach { source ->
-                val status = state.vehicle.providerStatus[source]
-                MetricRow(
-                    Icons.Rounded.Sensors,
-                    if (arabic) source.labelAr else source.labelEn,
-                    if (status?.connected == true) if (arabic) "متصل" else "Connected" else if (arabic) "غير متاح" else "Unavailable",
-                    status?.detail ?: "—",
-                )
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        if (maxWidth >= 900.dp) {
+            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                DiagnosticPane(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    title = if (arabic) "اتصال H9 2025" else "H9 2025 connection",
+                    scrollable = true,
+                ) { ConnectionSettingsContent(state, arabic, viewModel) }
+                DiagnosticPane(
+                    modifier = Modifier.weight(1.15f).fillMaxHeight(),
+                    title = if (arabic) "تقرير توافق النظام" else "System compatibility report",
+                    scrollable = true,
+                ) { SystemReportContent(state, arabic) }
+            }
+        } else {
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                DiagnosticPane(
+                    modifier = Modifier.fillMaxWidth(),
+                    title = if (arabic) "اتصال H9 2025" else "H9 2025 connection",
+                    scrollable = false,
+                ) { ConnectionSettingsContent(state, arabic, viewModel) }
+                DiagnosticPane(
+                    modifier = Modifier.fillMaxWidth(),
+                    title = if (arabic) "تقرير توافق النظام" else "System compatibility report",
+                    scrollable = false,
+                ) { SystemReportContent(state, arabic) }
             }
         }
-        InfoPane(Modifier.weight(.9f), if (arabic) "معلومات النظام" else "System information") {
-            val d = state.diagnostics
-            MetricRow(Icons.Rounded.Apps, "Android", d?.androidVersion ?: "—", "SDK ${d?.sdk ?: "—"}")
-            MetricRow(Icons.Rounded.DirectionsCar, if (arabic) "الجهاز" else "Device", d?.model ?: "—", d?.manufacturer ?: "—")
-            MetricRow(Icons.Rounded.Map, if (arabic) "الشاشة" else "Display", d?.screen ?: "—", "")
-            MetricRow(Icons.Rounded.LocationOn, "GPS", yesNo(d?.gps == true, arabic), if (arabic) "الموقع" else "Location")
-            Spacer(Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun ConnectionSettingsContent(state: H9UiState, arabic: Boolean, viewModel: H9ViewModel) {
+    val connected = state.vehicle.providerStatus.entries.firstOrNull { it.value.connected }
+    val statusTitle = when {
+        state.vehicle.demoMode -> if (arabic) "الوضع التجريبي يعمل" else "Demo mode active"
+        connected != null -> if (arabic) "متصل عبر ${connected.key.labelAr}" else "Connected through ${connected.key.labelEn}"
+        else -> if (arabic) "بانتظار سماح نظام السيارة" else "Waiting for vehicle access"
+    }
+    val statusDetail = connected?.value?.detail ?: state.vehicle.providerStatus.values
+        .firstOrNull { it.available }?.detail ?: if (arabic) "شغّل التقرير لمعرفة منصة الشاشة" else "Use the report to identify the head unit"
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = if (connected != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.background,
+        contentColor = if (connected != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onBackground,
+    ) {
+        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(statusTitle, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(statusDetail, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+
+    val context = LocalContext.current
+    val report = state.diagnostics?.asJson(state.vehicle.providerStatus)
+    Button(
+        onClick = {
+            if (report != null) {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("H9 Smart Drive compatibility", report))
+                Toast.makeText(context, if (arabic) "تم نسخ تقرير التوافق" else "Compatibility report copied", Toast.LENGTH_SHORT).show()
+            }
+        },
+        enabled = report != null,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp),
+        shape = RoundedCornerShape(22.dp),
+    ) {
+        Icon(Icons.Rounded.ContentCopy, null)
+        Spacer(Modifier.width(8.dp))
+        Text(if (arabic) "نسخ تقرير التوافق" else "Copy compatibility report", fontWeight = FontWeight.SemiBold)
+    }
+    FilledTonalButton(
+        onClick = {
+            if (report != null) {
+                val intent = Intent(Intent.ACTION_SEND)
+                    .setType("text/plain")
+                    .putExtra(Intent.EXTRA_SUBJECT, "H9 Smart Drive 2025 compatibility")
+                    .putExtra(Intent.EXTRA_TEXT, report)
+                runCatching { context.startActivity(Intent.createChooser(intent, null)) }
+                    .onFailure { Toast.makeText(context, if (arabic) "لا يوجد تطبيق مشاركة متاح" else "No sharing app is available", Toast.LENGTH_SHORT).show() }
+            }
+        },
+        enabled = report != null,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
+        shape = RoundedCornerShape(20.dp),
+    ) {
+        Icon(Icons.Rounded.Share, null)
+        Spacer(Modifier.width(8.dp))
+        Text(if (arabic) "مشاركة التقرير" else "Share report")
+    }
+
+    ToggleSetting(Icons.Rounded.Sensors, if (arabic) "الوضع التجريبي" else "Demo mode", if (arabic) "أوقفه لاختبار أرقام السيارة" else "Turn off to test vehicle data", state.settings.demoMode, viewModel::setDemoMode)
+    DataSource.entries.filter { it != DataSource.UNAVAILABLE && it != DataSource.DEMO }.forEach { source ->
+        val status = state.vehicle.providerStatus[source]
+        MetricRow(
+            Icons.Rounded.Sensors,
+            if (arabic) source.labelAr else source.labelEn,
+            when {
+                status?.connected == true -> if (arabic) "متصل" else "Connected"
+                status?.available == true -> if (arabic) "موجود" else "Detected"
+                else -> if (arabic) "غير موجود" else "Not found"
+            },
+            status?.detail ?: "—",
+        )
+    }
+    Text(if (arabic) "المظهر واللغة" else "Appearance & language", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    ToggleSetting(Icons.Rounded.Settings, if (arabic) "الوضع الليلي" else "Dark mode", if (arabic) "ألوان أقل سطوعًا" else "Lower-glare palette", state.settings.darkMode, viewModel::setDarkMode)
+    ToggleSetting(Icons.Rounded.Language, if (arabic) "اللغة العربية" else "Arabic language", if (arabic) "اتجاه واجهة RTL" else "RTL interface", arabic) { viewModel.setLanguage(if (it) "ar" else "en") }
+}
+
+@Composable
+private fun SystemReportContent(state: H9UiState, arabic: Boolean) {
+    val d = state.diagnostics
+    MetricRow(Icons.Rounded.Apps, "Android", d?.androidVersion ?: "—", "SDK ${d?.sdk ?: "—"} · ${d?.buildDisplay ?: "—"}")
+    MetricRow(Icons.Rounded.DirectionsCar, if (arabic) "وحدة الشاشة" else "Head unit", d?.model ?: "—", "${d?.manufacturer ?: "—"} · ${d?.product ?: "—"}")
+    MetricRow(Icons.Rounded.Map, if (arabic) "الشاشة" else "Display", d?.screen ?: "—", d?.device ?: "—")
+    MetricRow(Icons.Rounded.DirectionsCar, "Android Automotive", yesNo(d?.carApiAvailable == true, arabic), if (arabic) "ميزة Automotive: ${yesNo(d?.automotive == true, arabic)}" else "Automotive feature: ${yesNo(d?.automotive == true, arabic)}")
+    MetricRow(Icons.Rounded.LocationOn, "GPS", yesNo(d?.gps == true, arabic), if (arabic) "إذن الموقع: ${yesNo(d?.locationPermission == true, arabic)}" else "Location permission: ${yesNo(d?.locationPermission == true, arabic)}")
+    MetricRow(
+        Icons.Rounded.CheckCircle,
+        if (arabic) "صلاحيات السيارة" else "Vehicle permissions",
+        "${d?.grantedVehiclePermissionCount ?: 0}/${d?.vehiclePermissions?.size ?: 0}",
+        if (arabic) "تختلف حسب برمجة الوكيل" else "Depends on the OEM firmware",
+    )
+    Text(if (arabic) "خدمات GWM المكتشفة" else "Detected GWM services", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    val packages = d?.knownPackages.orEmpty()
+    packages.forEach { pkg ->
+        MetricRow(
+            Icons.Rounded.Apps,
+            pkg.roleAr,
+            if (pkg.installed) if (arabic) "موجود" else "Found" else if (arabic) "غير موجود" else "Missing",
+            if (pkg.installed) "${pkg.packageName} · ${pkg.versionName ?: "?"}" else pkg.packageName,
+        )
+        if (pkg.installed && pkg.services.isNotEmpty()) {
             Text(
-                if (arabic) "لا يتضمن التقرير معرفات شخصية أو رقم الهيكل." else "The report excludes personal identifiers and VIN.",
+                pkg.services.take(3).joinToString("\n") { service ->
+                    "• ${service.name.substringAfterLast('.')}" + (service.permission?.let { " · ${it.substringAfterLast('.')}" } ?: "")
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+    Text(
+        if (arabic) "التقرير لا يتضمن VIN أو الإحداثيات أو الحسابات الشخصية. انسخه وأرسله لي بعد إيقاف الوضع التجريبي والسيارة متوقفة على P." else "The report excludes VIN, coordinates, and account data. Copy it while parked with demo mode off.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun DiagnosticPane(
+    modifier: Modifier,
+    title: String,
+    scrollable: Boolean,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        val base = if (scrollable) Modifier.fillMaxSize().verticalScroll(rememberScrollState()) else Modifier.fillMaxWidth()
+        Column(
+            base.padding(22.dp),
+            verticalArrangement = Arrangement.spacedBy(13.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { heading() })
+            content()
         }
     }
 }
@@ -753,6 +901,16 @@ private fun ToggleSetting(
 }
 
 private fun sourceName(source: DataSource, arabic: Boolean): String = if (arabic) source.labelAr else source.labelEn
+
+private fun connectionLabel(vehicle: VehicleSnapshot, arabic: Boolean): String {
+    if (vehicle.demoMode) return if (arabic) "تجريبي" else "Demo"
+    val live = vehicle.providerStatus.entries.firstOrNull { it.value.connected }?.key
+    return if (live != null) {
+        if (arabic) "متصل · ${live.labelAr}" else "Connected · ${live.labelEn}"
+    } else {
+        if (arabic) "غير متصل" else "Offline"
+    }
+}
 
 private fun number(value: Number?, arabic: Boolean, decimals: Int = 0): String {
     if (value == null) return "—"

@@ -1,13 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Read-only vehicle data permissions. Unsupported OEM permissions are ignored by Android. -->
+    <uses-permission android:name="com.gwm.android.adapter.permission.GET_DATA" />
+    <uses-permission android:name="android.car.permission.CAR_SPEED" />
+    <uses-permission android:name="android.car.permission.CAR_ENGINE_DETAILED_3P" />
+    <uses-permission android:name="android.car.permission.CAR_ENGINE_DETAILED" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.car.permission.CAR_ENERGY" />
+    <uses-permission android:name="android.car.permission.CAR_EXTERIOR_ENVIRONMENT" />
+    <uses-permission android:name="android.car.permission.CAR_TIRES_3P" />
+    <uses-permission android:name="android.car.permission.CAR_TIRES" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.car.permission.CAR_MILEAGE_3P" />
+    <uses-permission android:name="android.car.permission.CAR_MILEAGE" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+    <uses-permission android:name="android.car.permission.CAR_INFO" />
 
     <uses-feature android:name="android.hardware.type.automotive" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
     <queries>
         <package android:name="com.gwm.android.adapter.server" />
+        <package android:name="com.beantechs.adapterservice.server" />
+        <package android:name="com.beantechs.inputservice" />
+        <package android:name="com.android.car" />
+        <package android:name="com.core.system.service" />
+        <package android:name="com.autolink.car.someip.service" />
+        <package android:name="com.autolink.tboxservice" />
+        <package android:name="com.autolink.clusterservice" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="geo" />

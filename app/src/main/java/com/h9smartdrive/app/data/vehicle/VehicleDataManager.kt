@@ -85,7 +85,7 @@ class VehicleDataManager(
     )
 
     private fun <T> best(current: Reading<T>, incoming: Reading<T>): Reading<T> {
-        if (!incoming.isAvailable()) return current
+        if (!incoming.isAvailable()) return if (current.isStale()) Reading() else current
         if (!current.isAvailable() || current.isStale()) return incoming
         return if (incoming.source.ordinal <= current.source.ordinal) incoming else current
     }
