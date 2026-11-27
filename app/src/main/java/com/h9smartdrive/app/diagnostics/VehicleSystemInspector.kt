@@ -10,6 +10,8 @@ import android.view.WindowManager
 import com.h9smartdrive.app.BuildConfig
 import com.h9smartdrive.app.data.vehicle.DataSource
 import com.h9smartdrive.app.data.vehicle.ProviderStatus
+import com.h9smartdrive.app.data.vehicle.Reading
+import com.h9smartdrive.app.data.vehicle.VehicleSnapshot
 
 data class ServiceProbe(
     val name: String,
@@ -50,7 +52,7 @@ data class SystemDiagnostics(
         it.packageName == "com.gwm.android.adapter.server" && it.installed
     }
 
-    fun asJson(statuses: Map<DataSource, ProviderStatus>): String = buildString {
+    fun asJson(statuses: Map<DataSource, ProviderStatus>, vehicle: VehicleSnapshot): String = buildString {
         appendLine("{")
         appendLine("  \"schema\": 2,")
         appendLine("  \"report\": \"H9 Smart Drive 2025 compatibility\",")
@@ -89,12 +91,51 @@ data class SystemDiagnostics(
         })
         appendLine()
         appendLine("  },")
+        appendLine("  \"signals\": {")
+        append(signalAvailability(vehicle).entries.joinToString(",\n") { (name, reading) ->
+            "    \"${name.escape()}\": {\"available\": ${reading.isAvailable()}, \"source\": \"${reading.source.name}\"}"
+        })
+        appendLine()
+        appendLine("  },")
         appendLine("  \"privacy\": \"No VIN, coordinates, account identifiers, or full package inventory included\"")
         appendLine("}")
     }
 
     private fun String.escape() = replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
     private fun String?.jsonStringOrNull(): String = this?.let { "\"${it.escape()}\"" } ?: "null"
+
+    private fun signalAvailability(vehicle: VehicleSnapshot): Map<String, Reading<*>> = linkedMapOf(
+        "speedKph" to vehicle.speedKph,
+        "rpm" to vehicle.rpm,
+        "odometerKm" to vehicle.odometerKm,
+        "currentTripKm" to vehicle.currentTripKm,
+        "accumulatedTripKm" to vehicle.accumulatedTripKm,
+        "averageSpeedKph" to vehicle.averageSpeedKph,
+        "fuelPercent" to vehicle.fuelPercent,
+        "rangeKm" to vehicle.rangeKm,
+        "averageFuelConsumptionL100Km" to vehicle.averageFuelConsumptionL100Km,
+        "instantFuelConsumptionL100Km" to vehicle.instantFuelConsumptionL100Km,
+        "engineTempC" to vehicle.engineTempC,
+        "transmissionTempC" to vehicle.transmissionTempC,
+        "outsideTempC" to vehicle.outsideTempC,
+        "batteryVoltage" to vehicle.batteryVoltage,
+        "gear" to vehicle.gear,
+        "driveMode" to vehicle.driveMode,
+        "fourWheelDrive" to vehicle.fourWheelDrive,
+        "frontDifferentialLocked" to vehicle.frontDifferentialLocked,
+        "rearDifferentialLocked" to vehicle.rearDifferentialLocked,
+        "doorStatus" to vehicle.doorStatus,
+        "steeringAngleDeg" to vehicle.steeringAngleDeg,
+        "engineTorqueNm" to vehicle.engineTorqueNm,
+        "tireFrontLeftPsi" to vehicle.tires.frontLeftPsi,
+        "tireFrontRightPsi" to vehicle.tires.frontRightPsi,
+        "tireRearLeftPsi" to vehicle.tires.rearLeftPsi,
+        "tireRearRightPsi" to vehicle.tires.rearRightPsi,
+        "tireFrontLeftTempC" to vehicle.tires.frontLeftTempC,
+        "tireFrontRightTempC" to vehicle.tires.frontRightTempC,
+        "tireRearLeftTempC" to vehicle.tires.rearLeftTempC,
+        "tireRearRightTempC" to vehicle.tires.rearRightTempC,
+    )
 }
 
 class VehicleSystemInspector(private val context: Context) {

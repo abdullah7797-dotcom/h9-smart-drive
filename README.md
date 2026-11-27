@@ -4,11 +4,13 @@
 
 استخدم رابط APK المباشر التالي داخل تطبيق Downloader:
 
-https://github.com/abdullah7797-dotcom/h9-smart-drive/releases/download/v1.3.0-beta.3/H9-Smart-Drive.apk
+https://github.com/abdullah7797-dotcom/h9-smart-drive/releases/download/v1.3.0-beta.4/H9-Smart-Drive.apk
 
 SHA-256:
 
-`a90a06ae07d99ec1dfdf59d6283ead576319f616e4083a03d0b0042ef0a15e4e`
+`d670204c3c2252dbdb108a316477cba951fc120f036328703adbbd630263c686`
+
+> ملاحظة انتقال لمرة واحدة: Beta 4 هي أول نسخة نهائية باسم الحزمة `com.h9smartdrive.app` وموقّعة بمفتاح ثابت. تُثبّت بجانب Beta 3 القديمة، وبعد التأكد من عملها يمكنك حذف نسخة Beta 3 ذات الاسم `com.h9smartdrive.app.debug`. التحديثات التالية ستظهر داخل التطبيق تلقائيًا.
 
 نسخة MVP أصلية لتطبيق شاشة Haval H9، مكتوبة بـKotlin وJetpack Compose، وتعمل من Android 9 (API 28) فما فوق. المشروع مصمم للعمل دون Root أو تعديل Firmware، ويفصل البيانات التجريبية بوضوح عن البيانات الحقيقية.
 
@@ -28,6 +30,8 @@ SHA-256:
 - وضع Demo محلي واضح ومستقل.
 - تخزين Room للرحلات والصيانة، وDataStore للإعدادات.
 - صفحة تشخيص لا تعرض VIN أو الإحداثيات أو المعرفات الشخصية في تقريرها.
+- قراءة موسعة لـ36 إشارة GWM على شاشة SA8155، تشمل حرارة وضغط الإطارات والرحلات والاستهلاك والقير والدفع والعجلات والعزم.
+- فحص تلقائي لتحديثات GitHub مع أيقونة تنبيه وتنزيل متحقق من البصمة والتوقيع قبل التثبيت.
 
 ## حدود هذه النسخة
 
@@ -63,6 +67,8 @@ app/build/outputs/apk/debug/app-debug.apk
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -W -n com.h9smartdrive.app.debug/com.h9smartdrive.app.MainActivity
 ```
+
+الإصدار الموزع على GitHub يُبنى بنوع `release` ويستخدم توقيعًا ثابتًا؛ لا تستخدم APK بنوع `debug` كتحديث فوقه.
 
 راجع [دليل اختبار السيارة](docs/VEHICLE_TESTING_AR.md) قبل الاستخدام على الشاشة الأصلية.
 ولموديل H9 2025 راجع [دليل التوافق والتشخيص](docs/H9_2025_COMPATIBILITY_AR.md).

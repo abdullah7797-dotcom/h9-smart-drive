@@ -14,11 +14,23 @@ android {
         applicationId = "com.h9smartdrive.app"
         minSdk = 28
         targetSdk = 35
-        versionCode = 13_003
-        versionName = "1.3.0-beta.3"
+        versionCode = 13_004
+        versionName = "1.3.0-beta.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
+    }
+
+    signingConfigs {
+        create("release") {
+            val keystorePath = System.getenv("H9_KEYSTORE_PATH")
+            if (!keystorePath.isNullOrBlank()) {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("H9_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("H9_KEY_ALIAS")
+                keyPassword = System.getenv("H9_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -29,6 +41,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

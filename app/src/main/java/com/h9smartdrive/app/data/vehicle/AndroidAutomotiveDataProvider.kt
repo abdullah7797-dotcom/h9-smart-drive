@@ -107,7 +107,8 @@ class AndroidAutomotiveDataProvider(private val context: Context) : VehicleDataP
                     Context::class.java.isAssignableFrom(method.parameterTypes[0])
             } ?: error("createCar غير متاح")
             val candidateCar = createCar.invoke(null, context) ?: error("Car API أعاد قيمة فارغة")
-            runCatching { candidateCar.javaClass.getMethod("connect").invoke(candidateCar) }
+            // createCar(Context) is synchronous and returns an already connected instance on
+            // Android Automotive 9. Calling connect() again throws "already connected".
             val manager = candidateCar.javaClass.getMethod("getCarManager", String::class.java)
                 .invoke(candidateCar, "property") ?: error("خدمة property غير متاحة")
             val getProperty = manager.javaClass.methods.firstOrNull { method ->
@@ -249,8 +250,13 @@ class AndroidAutomotiveDataProvider(private val context: Context) : VehicleDataP
         }
 
         private fun Throwable.rootCauseName(): String {
-            val unwrapped = if (this is InvocationTargetException) targetException ?: this else this
-            return unwrapped.javaClass.simpleName.ifBlank { "UnknownError" }
+            var unwrapped = if (this is InvocationTargetException) targetException ?: this else this
+            while (unwrapped.cause != null && unwrapped.cause !== unwrapped) {
+                unwrapped = unwrapped.cause!!
+            }
+            val name = unwrapped.javaClass.simpleName.ifBlank { "UnknownError" }
+            val detail = unwrapped.message?.take(80)?.takeIf(String::isNotBlank)
+            return if (detail == null) name else "$name: $detail"
         }
     }
 

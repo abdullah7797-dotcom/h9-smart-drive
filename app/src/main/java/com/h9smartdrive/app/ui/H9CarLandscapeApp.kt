@@ -37,6 +37,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DirectionsCar
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Home
@@ -53,6 +54,7 @@ import androidx.compose.material.icons.rounded.Sensors
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material.icons.rounded.TireRepair
 import androidx.compose.material.icons.rounded.Warning
@@ -60,8 +62,10 @@ import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -71,6 +75,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -95,6 +100,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.h9smartdrive.app.data.vehicle.DataSource
+import com.h9smartdrive.app.data.update.AppUpdateState
+import com.h9smartdrive.app.data.update.UpdatePhase
 import com.h9smartdrive.app.data.vehicle.Reading
 import com.h9smartdrive.app.data.vehicle.TireState
 import com.h9smartdrive.app.data.vehicle.VehicleSnapshot
@@ -169,6 +176,7 @@ fun H9SmartDriveApp(viewModel: H9ViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val arabic = state.settings.language == "ar"
     var selected by remember { mutableStateOf(CarScreen.HOME) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
 
     MaterialTheme(
         colorScheme = if (state.settings.darkMode) DarkScheme else LightScheme,
@@ -200,7 +208,13 @@ fun H9SmartDriveApp(viewModel: H9ViewModel) {
                             Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
-                            CarHeader(selected, state.vehicle, arabic)
+                            CarHeader(
+                                screen = selected,
+                                vehicle = state.vehicle,
+                                update = state.update,
+                                arabic = arabic,
+                                onUpdateClick = { showUpdateDialog = true },
+                            )
                             Box(Modifier.fillMaxWidth().weight(1f)) {
                                 when (selected) {
                                     CarScreen.HOME -> HomeLandscape(state.vehicle, arabic)
@@ -217,6 +231,16 @@ fun H9SmartDriveApp(viewModel: H9ViewModel) {
                     }
                 }
             }
+        }
+        if (showUpdateDialog) {
+            UpdateDialog(
+                update = state.update,
+                arabic = arabic,
+                onDismiss = { showUpdateDialog = false },
+                onDownload = viewModel::downloadUpdate,
+                onInstall = viewModel::installUpdate,
+                onRetry = viewModel::checkForUpdate,
+            )
         }
     }
 }
@@ -267,7 +291,13 @@ private fun CarNavigationRail(current: CarScreen, arabic: Boolean, onSelect: (Ca
 }
 
 @Composable
-private fun CarHeader(screen: CarScreen, vehicle: VehicleSnapshot, arabic: Boolean) {
+private fun CarHeader(
+    screen: CarScreen,
+    vehicle: VehicleSnapshot,
+    update: AppUpdateState,
+    arabic: Boolean,
+    onUpdateClick: () -> Unit,
+) {
     val time = remember { SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()) }
     Row(
         Modifier.fillMaxWidth().height(72.dp),
@@ -294,6 +324,21 @@ private fun CarHeader(screen: CarScreen, vehicle: VehicleSnapshot, arabic: Boole
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             HeaderChip(Icons.Rounded.Cloud, temperature(vehicle, arabic))
             HeaderChip(Icons.Rounded.Wifi, connectionLabel(vehicle, arabic))
+            if (update.showUpdateIcon) {
+                Surface(
+                    modifier = Modifier.size(52.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                ) {
+                    IconButton(onClick = onUpdateClick) {
+                        Icon(
+                            Icons.Rounded.SystemUpdate,
+                            if (arabic) "تحديث التطبيق متاح" else "App update available",
+                        )
+                    }
+                }
+            }
             Surface(
                 modifier = Modifier.size(52.dp),
                 shape = RoundedCornerShape(18.dp),
@@ -326,11 +371,109 @@ private fun HeaderChip(icon: ImageVector, label: String) {
 }
 
 @Composable
+private fun UpdateDialog(
+    update: AppUpdateState,
+    arabic: Boolean,
+    onDismiss: () -> Unit,
+    onDownload: () -> Unit,
+    onInstall: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    val info = update.info
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Rounded.SystemUpdate, null) },
+        title = {
+            Text(
+                if (arabic) "تحديث H9 Smart Drive" else "Update H9 Smart Drive",
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (info != null) {
+                    Text(
+                        if (arabic) "الإصدار ${info.versionName} · ${fileSize(info.sizeBytes, arabic)}"
+                        else "Version ${info.versionName} · ${fileSize(info.sizeBytes, arabic)}",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    if (info.releaseNotes.isNotBlank()) {
+                        Text(
+                            info.releaseNotes.take(900),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 9,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                when (update.phase) {
+                    UpdatePhase.DOWNLOADING -> {
+                        LinearProgressIndicator(
+                            progress = { update.progressPercent / 100f },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            if (arabic) "جارٍ التنزيل والتحقق… ${update.progressPercent}%"
+                            else "Downloading and verifying… ${update.progressPercent}%",
+                        )
+                    }
+                    UpdatePhase.READY_TO_INSTALL -> Text(
+                        if (arabic) "اكتمل التنزيل وتطابقت بصمة الملف والتوقيع."
+                        else "Download, checksum, and signature verification passed.",
+                    )
+                    UpdatePhase.INSTALL_PERMISSION_REQUIRED -> Text(
+                        update.message ?: if (arabic) "اسمح بالتثبيت ثم حاول مرة أخرى" else "Allow installation, then try again",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    UpdatePhase.FAILED -> Text(
+                        update.message ?: if (arabic) "تعذر إكمال التحديث" else "The update could not be completed",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    UpdatePhase.CHECKING -> Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CircularProgressIndicator(Modifier.size(28.dp))
+                        Text(if (arabic) "جارٍ فحص GitHub…" else "Checking GitHub…")
+                    }
+                    else -> Unit
+                }
+            }
+        },
+        confirmButton = {
+            when (update.phase) {
+                UpdatePhase.AVAILABLE -> Button(onClick = onDownload) {
+                    Icon(Icons.Rounded.Download, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (arabic) "تنزيل التحديث" else "Download update")
+                }
+                UpdatePhase.READY_TO_INSTALL,
+                UpdatePhase.INSTALL_PERMISSION_REQUIRED -> Button(onClick = onInstall) {
+                    Icon(Icons.Rounded.SystemUpdate, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (arabic) "تثبيت" else "Install")
+                }
+                UpdatePhase.FAILED -> Button(onClick = onRetry) {
+                    Text(if (arabic) "إعادة المحاولة" else "Try again")
+                }
+                else -> Unit
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(if (arabic) "لاحقاً" else "Later")
+            }
+        },
+    )
+}
+
+@Composable
 private fun HomeLandscape(vehicle: VehicleSnapshot, arabic: Boolean) {
     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         SpeedHero(vehicle, arabic, Modifier.weight(1.34f))
         VehicleStatusPane(vehicle, arabic, Modifier.weight(.92f))
-        JourneyPane(arabic, Modifier.weight(.74f))
+        JourneyPane(vehicle, arabic, Modifier.weight(.74f))
     }
 }
 
@@ -399,7 +542,7 @@ private fun VehicleStatusPane(vehicle: VehicleSnapshot, arabic: Boolean, modifie
 }
 
 @Composable
-private fun JourneyPane(arabic: Boolean, modifier: Modifier = Modifier) {
+private fun JourneyPane(vehicle: VehicleSnapshot, arabic: Boolean, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     InfoPane(modifier, if (arabic) "الرحلة" else "Journey") {
         Surface(
@@ -414,8 +557,19 @@ private fun JourneyPane(arabic: Boolean, modifier: Modifier = Modifier) {
                 verticalArrangement = Arrangement.SpaceAround,
             ) {
                 Icon(Icons.Rounded.Route, null, modifier = Modifier.size(48.dp))
-                Text(if (arabic) "الرياض" else "Riyadh", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
-                Text(if (arabic) "١٦ كم · ٢٤ دقيقة" else "16 km · 24 min", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    valueWithUnit(vehicle.currentTripKm, if (arabic) " كم" else " km", arabic, 1),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    if (arabic) {
+                        "متوسط ${valueWithUnit(vehicle.averageFuelConsumptionL100Km, " ل/100كم", arabic, 1)}"
+                    } else {
+                        "Average ${valueWithUnit(vehicle.averageFuelConsumptionL100Km, " L/100km", arabic, 1)}"
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                )
             }
         }
         PrimaryAction(Icons.Rounded.Map, if (arabic) "فتح الخريطة" else "Open map") { launchMaps(context, arabic) }
@@ -506,28 +660,30 @@ private fun WaypointsPane(arabic: Boolean, modifier: Modifier = Modifier) {
 @Composable
 private fun VehicleLandscape(vehicle: VehicleSnapshot, arabic: Boolean) {
     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        InfoPane(Modifier.weight(1f), if (arabic) "الإطارات" else "Tires") {
-            TireMetric(if (arabic) "أمامي يسار" else "Front left", vehicle.tires.frontLeftPsi, arabic)
-            TireMetric(if (arabic) "أمامي يمين" else "Front right", vehicle.tires.frontRightPsi, arabic)
-            TireMetric(if (arabic) "خلفي يسار" else "Rear left", vehicle.tires.rearLeftPsi, arabic)
-            TireMetric(if (arabic) "خلفي يمين" else "Rear right", vehicle.tires.rearRightPsi, arabic)
+        InfoPane(Modifier.weight(1f), if (arabic) "الإطارات" else "Tires", compact = true) {
+            TireMetric(if (arabic) "أمامي يسار" else "Front left", vehicle.tires.frontLeftPsi, vehicle.tires.frontLeftTempC, arabic)
+            TireMetric(if (arabic) "أمامي يمين" else "Front right", vehicle.tires.frontRightPsi, vehicle.tires.frontRightTempC, arabic)
+            TireMetric(if (arabic) "خلفي يسار" else "Rear left", vehicle.tires.rearLeftPsi, vehicle.tires.rearLeftTempC, arabic)
+            TireMetric(if (arabic) "خلفي يمين" else "Rear right", vehicle.tires.rearRightPsi, vehicle.tires.rearRightTempC, arabic)
+            MetricRow(Icons.Rounded.Speed, if (arabic) "سرعات العجلات" else "Wheel speeds", wheelSpeedSummary(vehicle, arabic), sourceName(vehicle.wheelFrontLeftKph.source, arabic))
         }
-        InfoPane(Modifier.weight(1f), if (arabic) "المحرك والطاقة" else "Engine & power") {
+        InfoPane(Modifier.weight(1f), if (arabic) "المحرك والطاقة" else "Engine & power", compact = true) {
             MetricRow(Icons.Rounded.Speed, if (arabic) "دورات المحرك" else "Engine RPM", number(vehicle.rpm.value, arabic), sourceName(vehicle.rpm.source, arabic))
             MetricRow(Icons.Rounded.Thermostat, if (arabic) "حرارة المحرك" else "Engine temp", valueWithUnit(vehicle.engineTempC, "°", arabic), sourceName(vehicle.engineTempC.source, arabic))
+            MetricRow(Icons.Rounded.Thermostat, if (arabic) "حرارة ناقل الحركة" else "Transmission temp", valueWithUnit(vehicle.transmissionTempC, "°", arabic), sourceName(vehicle.transmissionTempC.source, arabic))
             MetricRow(Icons.Rounded.BatteryChargingFull, if (arabic) "جهد البطارية" else "Battery", valueWithUnit(vehicle.batteryVoltage, "V", arabic, 1), sourceName(vehicle.batteryVoltage.source, arabic))
             MetricRow(Icons.Rounded.LocalGasStation, if (arabic) "الوقود" else "Fuel", valueWithUnit(vehicle.fuelPercent, "%", arabic), valueWithUnit(vehicle.rangeKm, if (arabic) " كم" else " km", arabic))
+            MetricRow(Icons.Rounded.LocalGasStation, if (arabic) "الاستهلاك" else "Consumption", valueWithUnit(vehicle.instantFuelConsumptionL100Km, if (arabic) " ل/100كم" else " L/100km", arabic, 1), valueWithUnit(vehicle.averageFuelConsumptionL100Km, if (arabic) " متوسط" else " average", arabic, 1))
+            MetricRow(Icons.Rounded.Speed, if (arabic) "عزم المحرك" else "Engine torque", valueWithUnit(vehicle.engineTorqueNm, " Nm", arabic), sourceName(vehicle.engineTorqueNm.source, arabic))
         }
-        InfoPane(Modifier.weight(.86f), if (arabic) "نظام القيادة" else "Drivetrain") {
-            LargeValue(vehicle.gear.value ?: "—", if (arabic) "ناقل الحركة" else "Gear")
-            LargeValue(vehicle.driveMode.value ?: "—", if (arabic) "وضع القيادة" else "Drive mode")
-            LargeValue(vehicle.fourWheelDrive.value ?: "—", if (arabic) "الدفع الرباعي" else "Four-wheel drive")
-            Spacer(Modifier.weight(1f))
-            Text(
-                if (arabic) "القيم غير المتاحة لا تُستبدل بتقديرات." else "Unavailable values are never replaced with estimates.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        InfoPane(Modifier.weight(.86f), if (arabic) "نظام القيادة" else "Drivetrain", compact = true) {
+            MetricRow(Icons.Rounded.DirectionsCar, if (arabic) "ناقل الحركة" else "Gear", vehicle.gear.value ?: "—", sourceName(vehicle.gear.source, arabic))
+            MetricRow(Icons.Rounded.Explore, if (arabic) "وضع القيادة" else "Drive mode", vehicle.driveMode.value ?: "—", sourceName(vehicle.driveMode.source, arabic))
+            MetricRow(Icons.Rounded.DirectionsCar, if (arabic) "الدفع الرباعي" else "Four-wheel drive", vehicle.fourWheelDrive.value ?: "—", differentialSummary(vehicle, arabic))
+            MetricRow(Icons.Rounded.Route, if (arabic) "مسافة الرحلة" else "Trip distance", valueWithUnit(vehicle.currentTripKm, if (arabic) " كم" else " km", arabic, 1), valueWithUnit(vehicle.accumulatedTripKm, if (arabic) " كم تراكمي" else " km accumulated", arabic, 1))
+            MetricRow(Icons.Rounded.Speed, if (arabic) "متوسط السرعة" else "Average speed", valueWithUnit(vehicle.averageSpeedKph, if (arabic) " كم/س" else " km/h", arabic, 1), sourceName(vehicle.averageSpeedKph.source, arabic))
+            MetricRow(Icons.Rounded.Navigation, if (arabic) "زاوية المقود" else "Steering angle", valueWithUnit(vehicle.steeringAngleDeg, "°", arabic, 1), sourceName(vehicle.steeringAngleDeg.source, arabic))
+            MetricRow(Icons.Rounded.DirectionsCar, if (arabic) "الأبواب" else "Doors", vehicle.doorStatus.value ?: "—", sourceName(vehicle.doorStatus.source, arabic))
         }
     }
 }
@@ -658,7 +814,7 @@ private fun ConnectionSettingsContent(state: H9UiState, arabic: Boolean, viewMod
     }
 
     val context = LocalContext.current
-    val report = state.diagnostics?.asJson(state.vehicle.providerStatus)
+    val report = state.diagnostics?.asJson(state.vehicle.providerStatus, state.vehicle)
     Button(
         onClick = {
             if (report != null) {
@@ -712,6 +868,26 @@ private fun ConnectionSettingsContent(state: H9UiState, arabic: Boolean, viewMod
     Text(if (arabic) "المظهر واللغة" else "Appearance & language", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
     ToggleSetting(Icons.Rounded.Settings, if (arabic) "الوضع الليلي" else "Dark mode", if (arabic) "ألوان أقل سطوعًا" else "Lower-glare palette", state.settings.darkMode, viewModel::setDarkMode)
     ToggleSetting(Icons.Rounded.Language, if (arabic) "اللغة العربية" else "Arabic language", if (arabic) "اتجاه واجهة RTL" else "RTL interface", arabic) { viewModel.setLanguage(if (it) "ar" else "en") }
+    FilledTonalButton(
+        onClick = viewModel::checkForUpdate,
+        enabled = state.update.phase != UpdatePhase.CHECKING && state.update.phase != UpdatePhase.DOWNLOADING,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
+        shape = RoundedCornerShape(20.dp),
+    ) {
+        if (state.update.phase == UpdatePhase.CHECKING) {
+            CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+        } else {
+            Icon(Icons.Rounded.SystemUpdate, null)
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            when {
+                state.update.showUpdateIcon -> if (arabic) "يوجد تحديث متاح" else "Update available"
+                state.update.phase == UpdatePhase.UP_TO_DATE -> if (arabic) "التطبيق محدّث" else "App is up to date"
+                else -> if (arabic) "فحص تحديث التطبيق" else "Check for app update"
+            },
+        )
+    }
 }
 
 @Composable
@@ -778,15 +954,23 @@ private fun DiagnosticPane(
 }
 
 @Composable
-private fun InfoPane(modifier: Modifier, title: String, content: @Composable ColumnScope.() -> Unit) {
+private fun InfoPane(
+    modifier: Modifier,
+    title: String,
+    compact: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(
-            Modifier.fillMaxSize().padding(22.dp),
-            verticalArrangement = Arrangement.spacedBy(13.dp),
+            Modifier
+                .fillMaxSize()
+                .then(if (compact) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                .padding(if (compact) 16.dp else 22.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 13.dp),
         ) {
             Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { heading() })
             content()
@@ -850,8 +1034,13 @@ private fun PrimaryAction(icon: ImageVector, label: String, onClick: () -> Unit)
 }
 
 @Composable
-private fun TireMetric(label: String, reading: Reading<Double>, arabic: Boolean) {
-    MetricRow(Icons.Rounded.TireRepair, label, valueWithUnit(reading, " PSI", arabic, 1), sourceName(reading.source, arabic))
+private fun TireMetric(label: String, pressure: Reading<Double>, temperature: Reading<Double>, arabic: Boolean) {
+    MetricRow(
+        Icons.Rounded.TireRepair,
+        label,
+        valueWithUnit(pressure, " PSI", arabic, 1),
+        valueWithUnit(temperature, "°C", arabic, 0),
+    )
 }
 
 @Composable
@@ -921,12 +1110,36 @@ private fun number(value: Number?, arabic: Boolean, decimals: Int = 0): String {
     }.format(value)
 }
 
+private fun fileSize(bytes: Long, arabic: Boolean): String {
+    if (bytes <= 0L) return "—"
+    return number(bytes / (1024.0 * 1024.0), arabic, 1) + " MB"
+}
+
 private fun <T : Number> valueWithUnit(reading: Reading<T>, unit: String, arabic: Boolean, decimals: Int = 0): String =
     reading.value?.let { number(it, arabic, decimals) + unit } ?: "—"
 
 private fun averageTire(tires: TireState, arabic: Boolean): String {
     val values = listOf(tires.frontLeftPsi.value, tires.frontRightPsi.value, tires.rearLeftPsi.value, tires.rearRightPsi.value).filterNotNull()
     return if (values.isEmpty()) "—" else number(values.average(), arabic, 1) + " PSI"
+}
+
+private fun wheelSpeedSummary(vehicle: VehicleSnapshot, arabic: Boolean): String {
+    val values = listOf(
+        vehicle.wheelFrontLeftKph.value,
+        vehicle.wheelFrontRightKph.value,
+        vehicle.wheelRearLeftKph.value,
+        vehicle.wheelRearRightKph.value,
+    )
+    return if (values.all { it == null }) "—" else values.joinToString(" / ") { number(it, arabic, 0) }
+}
+
+private fun differentialSummary(vehicle: VehicleSnapshot, arabic: Boolean): String {
+    val front = vehicle.frontDifferentialLocked.value
+    val rear = vehicle.rearDifferentialLocked.value
+    if (front == null && rear == null) return sourceName(vehicle.fourWheelDrive.source, arabic)
+    val frontText = if (front == true) if (arabic) "أمامي مقفل" else "Front locked" else if (arabic) "أمامي مفتوح" else "Front open"
+    val rearText = if (rear == true) if (arabic) "خلفي مقفل" else "Rear locked" else if (arabic) "خلفي مفتوح" else "Rear open"
+    return "$frontText · $rearText"
 }
 
 private fun temperature(vehicle: VehicleSnapshot, arabic: Boolean): String =

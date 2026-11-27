@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0-beta.4 — 2026-11-27
+
+- Expanded the GWM provider with tyre pressure and temperature, trip, fuel consumption, transmission temperature, steering angle, wheel speeds, torque, doors, drive mode and differential state.
+- Added a live read-only Binder listener with a safe periodic snapshot fallback for the detected H9 SA8155 platform.
+- Fixed Android Car API initialization on Android Automotive 9.
+- Added per-signal availability to the privacy-limited compatibility report.
+- Added GitHub update checks, an update icon, verified APK download, SHA-256 validation and signer validation before installation.
+
 ## 1.3.0-beta.3 — 2026-11-27
 
 - Added a read-only Android Automotive property bridge for H9 2025 head units.

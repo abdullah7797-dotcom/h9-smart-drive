@@ -1,22 +1,20 @@
-name: Build and publish APK
+name: Verify Android build
 
 on:
   push:
     branches:
       - main
-    paths:
-      - .github/workflows/release.yml
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: h9-smart-drive-release
+  group: h9-smart-drive-verify-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  build-and-release:
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -49,17 +47,3 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug testDebugUnitTest lintDebug
-
-      - name: Prepare APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk H9-Smart-Drive.apk
-
-      - name: Publish pre-release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create v1.3.0-beta.3 H9-Smart-Drive.apk \
-            --repo "${{ github.repository }}" \
-            --target "${{ github.sha }}" \
-            --title "H9 Smart Drive v1.3.0 Beta 3" \
-            --notes-file .github/release-notes-v1.3.0-beta.3.md \
-            --prerelease
